@@ -12,8 +12,9 @@ library(ggplot2); library(gridExtra); library(viridis)
 Redfield.C.to.O <- 106/138
 RCPz <- data.frame(RCP = c(0, 2.6, 4.5, 6, 8.5), pCO2atm = c(400L, 430L, 550L, 750L, 910L), color = c("black", "#2C7BB6", "#ABD9E9", "#FDAE61", "#D7191C")) #Make sure df is sorted in ascending order
   RCPz$color <- as.character(RCPz$color)
-#  "FOLDER/FILE"
-allvar.labels <-  readRDS("helper/allvar.labels.rds") #Load variable graphing labels. Opposite of saveRDS()
+#  "FOLDER/FILE" the filepath on the server is "//srv/shiny-server/coastalOA/helper"
+  #Note: filenames are case-sensitive!
+allvar.labels <-  readRDS("helper/allvar.labels.Rds") #Load variable graphing labels. Opposite of saveRDS()
 modOA <- readRDS(file="helper/cai_dd1_S33.5_TA2300.Rda")
 wc2 <- readRDS(file="helper/wc2.Rda")
 
