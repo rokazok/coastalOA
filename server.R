@@ -3,9 +3,10 @@
 ###############################
 # server.R
 library(shiny); library(shinydashboard); library(rhandsontable); library(DT); library(shinyjs)
-library(dplyr); library(data.table)
+library(data.table)
 library(seacarb); library(marelac)
-library(ggplot2); library(grid); library(gridExtra); library(viridis); library(cowplot)
+library(ggplot2); library(gridExtra); library(viridis)
+#library(dplyr); library(grid); library(cowplot)
 
 #Declare/upload variables
 Redfield.C.to.O <- 106/138
