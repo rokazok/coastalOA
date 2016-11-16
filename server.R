@@ -321,7 +321,7 @@ output$Download_plotB <- downloadHandler(
   
   output$options_PlotC <- renderUI({
     #if(!is.null(input$inputFile)) {
-      namez <- names(data1())
+      namez <- names(dt())
       flowLayout(
         selectInput(inputId = "xvar", label = "X", choices = namez, selected = "depth..m" ),
         selectInput(inputId = "yvar", label = "Y", choices = namez, selected = "btl.S" ),
