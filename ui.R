@@ -52,9 +52,7 @@ frowA3 <- fluidRow(
   ))
 frowA4 <- fluidRow(
   box(title = "Troubleshooting", status = "success", solidHeader = TRUE, width = 12,
-      verbatimTextOutput("T1"),
-      helpText("hv[['DF']]"), br(),
-      #tableOutput("T2"), 
+      #verbatimTextOutput("feedback"),
       br()
   ))
 
@@ -64,14 +62,18 @@ frowB1 <- fluidRow(
         #          helpText("Upload data"),br(),
         #          fluidRow(fileInput("inputFile", "1) Browse for file"),  #Upload button
         #                  tags$script('$( "#inputFile" ).on( "click", function() { this.value = null; });')),
-        helpText("Select data and model parameters"), br(),
-        uiOutput("pr_plotOptions"),
-        br(),
+        checkboxInput(inputId = "checkboxCleanCai", label = "Use cleaned up Cai data?", value = TRUE), br(),
+        helpText("Select data and model parameters. For profiles, set X = depth & check the Profile box below."), br(),
+        uiOutput("options_PlotC"),
         sliderInput("salinityRange", "Salinity Range:",  min = 0, max = 40, value = c(0,40)),
-        sliderInput("depthRange", "Depth Range (dbar):",  min = 0, max = 5000, value = c(0,5000)),
+        sliderInput("depthRange", "Depth Range (dbar):",  min = 0, max = 1000, value = c(0,1000)),
         #dateRangeInput(inputId = "dateRange", label = "Date Range (NOT USED HERE)", start = "2006-01-01", end = "2016-12-31", min = "2006-01-01", max = "2016-12-31", format = "yyyy-mm-dd", startview = "year", weekstart = 0, language = "en", separator = " to ", width = NULL),
         selectizeInput(inputId = "months", label = "Months", choices = 1:12, selected = 1:12, multiple = TRUE), br(),
-        downloadButton("downloadCaiData", "Download CSV")
+        downloadButton("downloadCaiData", "Download CSV"),
+        br(),
+        checkboxInput(inputId = "checkboxGoA", label = "Include Gulf of Alaska data in plots below", value = TRUE), 
+        br()
+        
     ),
     box(title = "Plot", status = "success", solidHeader = TRUE, width = 7, height = 760,
         plotOutput("plotC")

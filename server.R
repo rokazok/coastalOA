@@ -17,6 +17,8 @@ RCPz <- data.frame(RCP = c(0, 2.6, 4.5, 6, 8.5), pCO2atm = c(400L, 430L, 550L, 7
 allvar.labels <-  readRDS("helper/allvar.labels.Rds") #Load variable graphing labels. Opposite of saveRDS()
 modOA <- readRDS(file="helper/cai_dd1_S33.5_TA2300.Rda")
 wc2 <- readRDS(file="helper/wc2.Rda")
+ga1 <- readRDS(file="helper/ga1.Rda")
+
 
   
 #Create plotting functions
@@ -39,7 +41,7 @@ makePlot <- function(data, x, y, color, colorIsFactor = TRUE, colorValues = NULL
   return(list(myPlot, myPlot_zoom, YvX))    #Do not print plots if you want them to be interactive  
 }
 
-shinyServer(function(input, output) {
+shinyServer(function(input, output, session) {
 
 ##############################
 ###  Initial shiny setup   ###
@@ -132,8 +134,6 @@ dd.initial <- data.table(ocean = c("Gulf of Mexico", "West Coast"),
       rhandsontable(tempdf)
     }
   })
-  output$T1 <- renderPrint(hv_allRowsNotNA$check)
-  output$T2 <- renderTable(rdt() ) #renderTable(hv[["DF"]])  #Troubleshooting
 
 hv_allRowsNotNA <- reactiveValues(check = 0L)
 observeEvent(hv[["DF"]], { hv_allRowsNotNA$check <- hv_allRowsNotNA$check + all(!is.na(hv[["DF"]])) })  
@@ -155,7 +155,7 @@ rdt <- eventReactive(hv_allRowsNotNA$check, {
   dd[, c("DICi", "pHi", "CO2i", "HCO3i", "CO3i", "Aragi", "Calcitei") := carb(flag = 24, var1 = pCO2i, var2 = TA* 1e-6, S= S, T = T, P=0, Patm = 1, Pt = 0e-6, Sit = 0e-6)[, c("DIC", "pH", "CO2", "HCO3", "CO3", "OmegaAragonite", "OmegaCalcite")]]
   dd[, RFi := buffesm(flag = 24, var1 = pCO2i, var2 = TA* 1e-6, S= S, T = T, P=0, Patm = 1, Pt = 0e-6, Sit = 0e-6)$R]
   dd[, c("betaDICi", "omegaDICi") := buffesm(flag = 24, var1 = pCO2i, var2 = TA* 1e-6, S= S, T = T, P=0, Patm = 1, Pt = 0e-6, Sit = 0e-6)[, c("betaDIC", "omegaDIC")]]
-  system.time(dd[, c("DICi", "CO2i", "HCO3i", "CO3i", "betaDICi", "omegaDICi") := lapply(.SD, function(zz) zz*1e6), .SDcols = c("DICi", "CO2i", "HCO3i", "CO3i")]) #convert to umol kg-1
+  system.time(dd[, c("DICi", "CO2i", "HCO3i", "CO3i", "betaDICi", "omegaDICi") := lapply(.SD, function(zz) zz*1e6), .SDcols = c("DICi", "CO2i", "HCO3i", "CO3i", "betaDICi", "omegaDICi")]) #convert to umol kg-1
   #4) calculate dO2. First make a list of O2f from 0 to O2i
   #Add rows from 0 to O2i, recycling T, S, and O2i
   dt <- dd[, list(ocean, T , S, TA, pCO2atm, O2f = c(seq(0, O2i, by = 10), O2i) ), by=1:nrow(dd)]
@@ -215,14 +215,6 @@ observeEvent(input$plotA_dblclick, {
   }
 })
 
-#plot_colors <- reactiveValues(rcp = RCPz$color)
-#plot_colors$rcp <- reactive(if(!is.null(input$Colour.RCP2)) { plot_colors$rcp <- sapply(1:5, function(i) eval(parse(text = paste0("input$Colour.RCP",i)))) })
-#plot_colors$rcp[1] <- input$Colour.RCP1
-#plot_colors$rcp[2] <- input$Colour.RCP2
-#plot_colors$rcp[3] <- input$Colour.RCP3
-#plot_colors$rcp[4] <- input$Colour.RCP4
-#plot_colors$rcp[5] <- input$Colour.RCP5
-#plot_colors$rcp <- c(input$Colour.RCP1, input$Colour.RCP2, input$Colour.RCP3, input$Colour.RCP4, input$Colour.RCP5)
 plot_colors_rcp <- reactive(if(is.null(input$Colour.RCP2)) RCPz$color else c(input$Colour.RCP1, input$Colour.RCP2, input$Colour.RCP3, input$Colour.RCP4, input$Colour.RCP5))#sapply(1:5, function(i) eval(parse(text = paste0("input$Colour.RCP",i))))
 
 myPlotA <- reactive({ makePlot(data = rdt(), x = input$x_rcpO2, y = input$y_rcpO2, color = "RCP", colorIsFactor = TRUE, colorValues = plot_colors_rcp(), colorLabels= c("present", RCPz$RCP[2:5]), facet = "ocean", myxlim = brush.ranges$plotA_x, myylim = brush.ranges$plotA_y) })
@@ -291,14 +283,24 @@ output$Download_plotB <- downloadHandler(
   #  return(qq)
   #})
   
-  dt <- reactive({
+  dtt <- reactive({
       qq <- read.csv("helper/Cai_GOM_processed_20161104.csv", header = TRUE, na.strings = c("NA","#DIV/0!"))
-      qq$date <- as.POSIXct(strptime(qq$date, format = "%m/%d/%Y", tz="UTC"))
-      qq$month <-  as.integer(format(as.Date(qq$date), "%m")) 
-      qq$year <-   as.integer(format(as.Date(qq$date), "%Y"))
-      qq$shallow <- qq$depth..m <= 5
-      return(qq)
+        qq$date <- as.POSIXct(strptime(qq$date, format = "%m/%d/%Y", tz="UTC"))
+        qq$month <-  as.integer(format(as.Date(qq$date), "%m")) 
+        qq$year <-   as.integer(format(as.Date(qq$date), "%Y"))
+        qq$shallow <- qq$depth..m <= 5
+      #New data Dick cleaned up:
+      pp <- readRDS("helper/Cai_GOM_cleaned_11152016.Rds")
+        pp$date <- as.POSIXct(strptime(pp$date, format = "%m/%d/%Y", tz="UTC"))
+        pp$month <-  as.integer(format(as.Date(pp$date), "%m")) 
+        pp$year <-   as.integer(format(as.Date(pp$date), "%Y"))
+        pp$shallow <- pp$depth..m <= 5
+        setnames(pp,"GOM.cruise","cruise")
+      return(list(qq, pp))
     })
+  dt <- reactive({
+    if(input$checkboxCleanCai == TRUE) { return(dtt()[[2]]) } else { return(dtt()[[1]]) }
+  })
   
   #Reactive data filtering
   data1 <- reactive({dt()[#dt()$date >= as.POSIXct(format(input$dateRange[1], tz= "UTC"), tz = "UTC") &
@@ -307,20 +309,30 @@ output$Download_plotB <- downloadHandler(
                            dt()$month %in% input$months &
                            dt()$depth..m >= input$depthRange[1] & dt()$depth..m <= input$depthRange[2], ]
   })
-  output$pr_plotOptions <- renderUI({
+  caiInputs <- reactiveValues(btl.S = isolate(range(dt()$btl.S, na.rm= TRUE)), depth = isolate(range(dt()$depth..m, na.rm= TRUE)) )
+  observeEvent(input$checkboxCleanCai, {
+    caiInputs$btl.S <- range(dt()$btl.S, na.rm= TRUE)
+    caiInputs$depth <- range(dt()$depth..m, na.rm= TRUE)
+    updateSliderInput(session, inputId = "salinityRange", "Salinity Range:",  min = caiInputs$btl.S[1], max = ceiling(caiInputs$btl.S[2]), value = isolate(input$salinityRange))
+    updateSliderInput(session, inputId = "depthRange", "Depth Range (dbar):",  min = caiInputs$depth[1], max = caiInputs$depth[2], value = isolate(input$depthRange) )
+    updateSelectizeInput(session, inputId = "months", label = "Months", choices = sort(unique(dt()$month)), selected = isolate(input$months))
+    })
+  
+  
+  output$options_PlotC <- renderUI({
     #if(!is.null(input$inputFile)) {
-    {
       namez <- names(data1())
       flowLayout(
         selectInput(inputId = "xvar", label = "X", choices = namez, selected = "depth..m" ),
-        selectInput(inputId = "yvar", label = "Y", choices = namez, selected = "pH..calculated.from.TA...DIC." ),
+        selectInput(inputId = "yvar", label = "Y", choices = namez, selected = "btl.S" ),
         selectInput(inputId = "pr_colour", label = "color", choices = namez, selected = "ctemp.degC" ),
         helpText(HTML("Check for depth profiles (set x = depth).&nbsp;")),
         checkboxInput(inputId = "checkboxProfile", label = "Profile", value = TRUE),
         checkboxInput(inputId = "checkboxStation", label = "Station lines", value = TRUE),
-        selectizeInput("cruises", "Cruises", choices = c("all", as.character(unique(dt()$cruise))), selected = "all", multiple = TRUE),
+        selectizeInput(inputId = "cruises", "Cruises", choices = c("all", as.character(unique(dt()$cruise))), selected = "all", multiple = TRUE),
+        
         br()
-      )} })
+      ) })
   data2 <- reactive({
     names <- NULL
     if ("all" %in% input$cruises) {
@@ -374,53 +386,66 @@ output$Download_plotB <- downloadHandler(
 
 myPlotD <- reactive({
   #pH graphs
-  gp <- template +
-    geom_point(data = wc2, aes(DO, pH, colour = T, fill = T, shape = "West Coast"), size = 2) +
-    geom_point(data = data2(), aes(DO.umol.kg, pH..calculated.from.TA...DIC., colour = ctemp.degC, fill = ctemp.degC, shape = "Gulf of Mexico"), size = 2)
+#  gp <- template +
+#    geom_point(data = wc2, aes(DO, pH, colour = T, fill = T, shape = "West Coast"), size = 2) +
+#    geom_point(data = data2(), aes(DO.umol.kg, pH..calculated.from.TA...DIC., colour = ctemp.degC, fill = ctemp.degC, shape = "Gulf of Mexico"), size = 2)
   #geom_point(data = cai[site2 == "GOM"], aes(DO, pH, colour = T, fill = T, shape = "Gulf of Mexico"), size = 2) 
   #No shallow cai points so this line would cause an error: geom_point(data = cai[site2 == "GOM" & shallow == TRUE], aes(DO, pH, colour = T, fill = T, shape = "Gulf of Mexico"), fill = "white", size = 2) 
   gpShallow <- template + theme(legend.background = element_rect(fill = alpha("white", 0)) ) + #legend.position = c(0.85, 0.25), 
     geom_point(data = wc2[shallow == FALSE], aes(DO, pH, colour = T, fill = T, shape = "West Coast"), size = 2) +
     geom_point(data = wc2[shallow == TRUE], aes(DO, pH, colour = T, fill = T, shape = "West Coast"), fill = "white", size = 2) +
     geom_point(data = data2()[data2()$shallow == FALSE,], aes(DO.umol.kg, pH..calculated.from.TA...DIC., colour = ctemp.degC, fill = ctemp.degC, shape = "Gulf of Mexico"), size = 2) +
-    if(any(data2()$shallow == TRUE)) {
-    geom_point(data = data2()[data2()$shallow == TRUE,], aes(DO.umol.kg, pH..calculated.from.TA...DIC., colour = ctemp.degC, shape = "Gulf of Mexico"), fill = "white", size = 2) 
-} else { NULL }
-#  #Add gulf of alaska
-#  gpShallow + scale_shape_manual(values = c(22, 24, 21)) + guides(fill = FALSE, shape = guide_legend(override.aes = list(shape = c(15, 17,16)))  ) +   theme(legend.position = c(0.82, 0.3)) +
-#    geom_point(data = ga1[depth > 5], aes(DO0.ctd, pH, colour = T1, fill = T1, shape = "Gulf of Alaska"), size = 2) +
-#    geom_point(data = ga1[depth <= 5], aes(DO0.ctd, pH, colour = T1, fill = T1, shape = "Gulf of Alaska"), fill = "white", size = 2) 
+    xtras.PlotD()
   return(gpShallow)
 })
-output$plotD <- renderPlot({  myPlotD() })
+xtras.PlotD <- reactive({ list(if(any(data2()$shallow == TRUE)) {
+  geom_point(data = data2()[data2()$shallow == TRUE,], aes(DO.umol.kg, pH..calculated.from.TA...DIC., colour = ctemp.degC, shape = "Gulf of Mexico"), fill = "white", size = 2) 
+} else { NULL },
+  #Add gulf of alaska
+  #gpShallow + scale_shape_manual(values = c(22, 24, 21)) + guides(fill = FALSE, shape = guide_legend(override.aes = list(shape = c(15, 17,16)))  ) +   theme(legend.position = c(0.82, 0.3)) +
+  if(input$checkboxGoA == TRUE) { list(
+    scale_shape_manual(values = c(22, 24, 21)),
+    guides(fill = FALSE, shape = guide_legend(override.aes = list(shape = c(15, 17,16)))),
+    geom_point(data = ga1[depth > 5], aes(DO0.ctd, pH, colour = T1, fill = T1, shape = "Gulf of Alaska"), size = 2),
+    geom_point(data = ga1[depth <= 5], aes(DO0.ctd, pH, colour = T1, fill = T1, shape = "Gulf of Alaska"), fill = "white", size = 2) 
+  )} else { NULL }
+) })
+output$plotD <- renderPlot({ suppressWarnings( myPlotD() ) })
+
 myPlotE <- reactive({ 
   #Arag graphs
   #for reference: gp %+% temp[T %in% seq(5,30, by=5)]  #update ggplot
-  gp1 <- template + aes(y = Aragf) + labs(y = bquote(Omega[aragonite])) +#theme(legend.position = c(0.88, 0.25)) +
-    geom_point(data = wc2, aes(DO, Arag, colour = T, shape = "West Coast"), size = 2) +
-    geom_point(data = data2(), aes(DO.umol.kg, Arag..calculated.from.TA...DIC., colour = ctemp.degC, fill=ctemp.degC, shape = "Gulf of Mexico"), size = 2)
+#  gp1 <- template + aes(y = Aragf) + labs(y = bquote(Omega[aragonite])) +#theme(legend.position = c(0.88, 0.25)) +
+#    geom_point(data = wc2, aes(DO, Arag, colour = T, shape = "West Coast"), size = 2) +
+#    geom_point(data = data2(), aes(DO.umol.kg, Arag..calculated.from.TA...DIC., colour = ctemp.degC, fill=ctemp.degC, shape = "Gulf of Mexico"), size = 2)
   #geom_point(data = cai[site2 == "GOM"], aes(DO, Arag, colour = T, shape = "Gulf of Mexico"), size = 2)
   gp1Shallow <- template + aes(y = Aragf) + theme(legend.background = element_rect(fill = alpha("white", 0)), legend.box.just = "right") + labs(y = bquote(Omega[aragonite])) + #legend.position = c(0.85, 0.25),
     #guides(colour = guide_colourbar(direction = "horizontal", title.position = "top")) +
     geom_point(data = wc2[shallow == FALSE], aes(DO, Arag, colour = T, fill = T, shape = "West Coast"), size = 2) +
     geom_point(data = wc2[shallow == TRUE], aes(DO, Arag, colour = T, fill = T, shape = "West Coast"), fill = "white", size = 2) +
     geom_point(data = data2()[data2()$shallow == FALSE,], aes(DO.umol.kg, Arag..calculated.from.TA...DIC., colour = ctemp.degC, fill = ctemp.degC, shape = "Gulf of Mexico"), size = 2) +
-    if(any(data2()$shallow == TRUE)) {
-      geom_point(data = data2()[data2()$shallow == TRUE,], aes(DO.umol.kg, Arag..calculated.from.TA...DIC., colour = ctemp.degC, shape = "Gulf of Mexico"), fill = "white", size = 2) 
-    } else { NULL }
-#  #include Gulf of Alaska.
-#  gpa <- gp1Shallow + scale_shape_manual(values = c(22, 24, 21)) + guides(fill = FALSE, shape = guide_legend(override.aes = list(shape = c(15, 17,16))), colour = guide_colourbar(direction = "horizontal", title.position = "top", title.hjust=1)  ) +   theme(legend.position = c(0.82, 0.18)) +
-#    geom_point(data = ga1[depth > 5], aes(DO0.ctd, Arag, colour = T1, fill = T1, shape = "Gulf of Alaska"), size = 2) +
-#    geom_point(data = ga1[depth <= 5], aes(DO0.ctd, Arag, colour = T1, fill = T1, shape = "Gulf of Alaska"), fill = "white", size = 2) 
+    xtras.PlotE()
   return(gp1Shallow)
 })  
-output$plotE <- renderPlot({ myPlotE() })
+xtras.PlotE <- reactive({ list(if(any(data2()$shallow == TRUE)) {
+  geom_point(data = data2()[data2()$shallow == TRUE,], aes(DO.umol.kg, Arag..calculated.from.TA...DIC., colour = ctemp.degC, shape = "Gulf of Mexico"), fill = "white", size = 2)
+} else { NULL },
+  #  #include Gulf of Alaska.
+  #  gpa <- gp1Shallow + scale_shape_manual(values = c(22, 24, 21)) + guides(fill = FALSE, shape = guide_legend(override.aes = list(shape = c(15, 17,16))), colour = guide_colourbar(direction = "horizontal", title.position = "top", title.hjust=1)  ) +   theme(legend.position = c(0.82, 0.18)) +
+  if(input$checkboxGoA == TRUE) { list(
+    scale_shape_manual(values = c(22, 24, 21)), 
+    guides(fill = FALSE, shape = guide_legend(override.aes = list(shape = c(15, 17,16)))),
+    geom_point(data = ga1[depth > 5], aes(DO0.ctd, Arag, colour = T1, fill = T1, shape = "Gulf of Alaska"), size = 2),
+    geom_point(data = ga1[depth <= 5], aes(DO0.ctd, Arag, colour = T1, fill = T1, shape = "Gulf of Alaska"), fill = "white", size = 2) 
+  )} else { NULL }
+) })
+output$plotE <- renderPlot({ suppressWarnings( myPlotE() ) })
 output$Download_plotD <- downloadHandler(
   filename = paste0("pH-DO_modelVactual_",format(Sys.Date(), "%Y%m%d"),".", input$plotD_filetype),
-  content = function(file) {  ggsave(file, plot = myPlotD()[[2]], device = input$plotD_filetype) } )
+  content = function(file) {  ggsave(file, plot = myPlotD(), device = input$plotD_filetype) } )
 output$Download_plotE <- downloadHandler(
   filename = paste0("pH-Arag_modelVactual_",format(Sys.Date(), "%Y%m%d"),".", input$plotE_filetype),
-  content = function(file) {  ggsave(file, plot = myPlotE()[[2]], device = input$plotE_filetype) } )
+  content = function(file) {  ggsave(file, plot = myPlotE(), device = input$plotE_filetype) } )
 
 observeEvent(input$plotD_dblclick, {
   brush <- input$plotD_brush
@@ -495,15 +520,7 @@ observeEvent(
 
   
 # TROUBLESHOOTING: Output text  
-  output$feed1 <- renderPrint({ 
-    list(unique(data2()$sta)  )
-         })
-  output$feedback <- renderPrint({ 
-    list(str(data2()),
-         nrow(data1()), 
-         nrow(data2())
-         )  })
-  #output$feed2 <- renderPrint(sapply(1:length(unique(rsurf()$ocean)), function(i) eval(parse(text = paste0("input$Colour.ocean",i)))))
-  
+  output$feedback <- renderPrint( list("object here") )
+
   
   }) #Close shinyServer(function() {
