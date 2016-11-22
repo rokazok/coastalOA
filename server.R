@@ -2,7 +2,7 @@
 ###  Initial inforamation   ###
 ###############################
 # server.R
-library(shiny); library(shinydashboard); library(rhandsontable); library(DT); library(shinyjs)
+library(shiny); library(shinydashboard); library(rhandsontable); library(DT); library(shinyjs); library(colourpicker)
 library(data.table)
 library(seacarb); library(marelac)
 library(ggplot2); library(gridExtra); library(viridis)
@@ -290,12 +290,14 @@ output$Download_plotB <- downloadHandler(
         qq$year <-   as.integer(format(as.Date(qq$date), "%Y"))
         qq$shallow <- qq$depth..m <= 5
       #New data Dick cleaned up:
-      pp <- readRDS("helper/Cai_GOM_cleaned_11152016.Rds")
-        pp$date <- as.POSIXct(strptime(pp$date, format = "%m/%d/%Y", tz="UTC"))
+      #pp <- readRDS("helper/Cai_GOM_cleaned_11152016.Rds")
+      #New data Remy cleaned up:
+      pp <- readRDS("helper/cai_ROfilter.Rds")
+        #pp$date <- as.POSIXct(strptime(pp$date, format = "%m/%d/%Y", tz="UTC")) #Use with Dick's data
         pp$month <-  as.integer(format(as.Date(pp$date), "%m")) 
         pp$year <-   as.integer(format(as.Date(pp$date), "%Y"))
-        pp$shallow <- pp$depth..m <= 5
-        setnames(pp,"GOM.cruise","cruise")
+        pp$shallow <-pp$depth..m <= 5
+        setnames(pp,"GOM.cruise","cruise") 
       return(list(qq, pp))
     })
   dt <- reactive({
