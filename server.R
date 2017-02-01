@@ -42,7 +42,7 @@ makePlot <- function(data, x, y, color, colorIsFactor = TRUE, colorValues = NULL
 }
 
 shinyServer(function(input, output, session) {
-
+  addClass(selector = "body", class = "sidebar-collapse")
 ##############################
 ###  Initial shiny setup   ###
 ##############################

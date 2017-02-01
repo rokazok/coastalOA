@@ -114,6 +114,7 @@ myBody <-  dashboardBody(
     border-spacing: 0px;
     }"
     ))),
+  useShinyjs(),
   
   tabItems(
     tabItem(tabName = "coastalTab",
